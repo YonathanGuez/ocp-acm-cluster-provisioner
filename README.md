@@ -1,6 +1,15 @@
 # ACM Multi-Cluster Deployment Automation
 
-Automated deployment of OpenShift clusters on AWS using Red Hat Advanced Cluster Management (ACM). This project provides scripts and configuration templates to streamline the provisioning and management of multiple clusters with different network configurations.
+Automated deployment of OpenShift clusters on AWS using Red Hat Advanced Cluster Management (ACM).
+This project provides scripts and configuration templates to streamline the provisioning and management of multiple clusters with different network configurations.
+
+This is for people using Red Hat Demo Platform with the service:
+Advanced Cluster Management for Kubernetes Demo
+
+The Red Hat Demo Platform will provide you:
+
+- URL link User and Password to openshift ACM
+- AWS ID,KEY and BASE_DOMAIN
 
 ## Table of Contents
 
@@ -27,16 +36,20 @@ Automated deployment of OpenShift clusters on AWS using Red Hat Advanced Cluster
 
 ### AWS Requirements
 
-- Valid AWS account with appropriate permissions
+Red Hat Demo Platform provides:
+
 - AWS Access Key ID and Secret Access Key
 - Base DNS domain (provided by RHDP system)
+  (Valid AWS account with appropriate permissions)
 
 ### ACM Hub Cluster
 
 - An existing ACM Hub cluster must be running and accessible
-- You must be logged in to the hub cluster with `oc login`
+- You must be logged in to the hub cluster with `oc login` for the first time
 
-### Credentials
+### Credentials (optional)
+
+This script will generate for you:
 
 - Red Hat OpenShift pull secret (from your Red Hat account)
 - SSH key pair in PEM format (can be generated or provided)
@@ -51,7 +64,7 @@ First, configure your pull secret and SSH keys:
 ./deploy-cluster.sh --set-config
 ```
 
-It will open a webpage you need to approve for get the pull secret
+It will open a webpage you need to approve to get the pull secret
 
 This will prompt you to provide:
 
@@ -72,7 +85,6 @@ AWS_ID="your-aws-access-key-id"
 AWS_KEY="your-aws-secret-access-key"
 
 # Deployment Settings
-REGION="eu-west-2"                    # or eu-west-3 for EMEA
 SECRET_NAME="aws"
 SECRET_NAMESPACE="open-cluster-management"
 IMAGE_SET="img4.19.31-multi-appsub"   # Check available images with: oc get clusterimageset
@@ -124,7 +136,7 @@ oc get clusterimageset -o custom-columns=NAME:.metadata.name,RELEASE:.spec.relea
 
 ### Cluster-Specific Configuration
 
-Each cluster needs a `.env.cluster<name>` file with network settings:
+Each cluster needs a `.env.cluster<NUMBER>` file with network settings:
 
 | Variable       | Description                 | Example         |
 | -------------- | --------------------------- | --------------- |
@@ -193,6 +205,7 @@ Deploy all configured clusters in sequence:
 ```
 
 This will deploy all clusters found in `.env.cluster*` files.
+It will also generate ssh_key and pull-secret if they are not already in tmp-secrets
 
 ## Usage Examples
 
@@ -252,6 +265,28 @@ Configure credentials interactively:
 
 ```bash
 ./deploy-cluster.sh --set-config
+```
+
+### Simplify your navigation between clusters with ACM:
+
+This script will overwrite your kubeconfig and get all new clusters created in ACM
+
+```bash
+./init-local-clusters.sh
+```
+
+Your ACM cluster will be renamed to acm-hub and all other clusters will get the same name as your ACM cluster
+
+You can check with:
+
+```bash
+oc config get-contexts
+```
+
+You can switch to another cluster with:
+
+```bash
+oc config use-context <cluster-name>
 ```
 
 ## Troubleshooting
@@ -417,5 +452,4 @@ For issues or questions:
 
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Review deployment logs: `oc logs -n <cluster-name> -l app=hive`
-3. Check CLAUDE.md for known issues and solutions
-4. Consult the ACM documentation for cluster management topics
+3. Consult the ACM documentation for cluster management topics
