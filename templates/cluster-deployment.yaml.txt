@@ -1,0 +1,182 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${CLUSTER_NAME}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${CLUSTER_NAME}-aws-creds
+  namespace: ${CLUSTER_NAME}
+  labels:
+    cluster.open-cluster-management.io/backup: cluster
+    cluster.open-cluster-management.io/copiedFromNamespace: open-cluster-management
+    cluster.open-cluster-management.io/copiedFromSecretName: aws
+type: Opaque
+stringData:
+  aws_access_key_id: ${AWS_ID}
+  aws_secret_access_key: ${AWS_KEY}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${CLUSTER_NAME}-install-config
+  namespace: ${CLUSTER_NAME}
+  labels:
+    cluster.open-cluster-management.io/backup: cluster
+type: Opaque
+stringData:
+  install-config.yaml: |
+    apiVersion: v1
+    metadata:
+      name: ${CLUSTER_NAME}
+    baseDomain: ${BASE_DOMAIN}
+    controlPlane:
+      hyperthreading: Enabled
+      name: master
+      replicas: 3
+      platform:
+        aws:
+          rootVolume:
+            iops: 4000
+            size: 100
+            type: io1
+          type: m5.xlarge
+    compute:
+      - hyperthreading: Enabled
+        name: "worker"
+        replicas: 3
+        platform:
+          aws:
+            rootVolume:
+              iops: 2000
+              size: 100
+              type: io1
+            type: m5.xlarge
+    networking:
+      networkType: OVNKubernetes
+      clusterNetwork:
+      - cidr: ${POD_CIDR}
+        hostPrefix: ${HOST_PREFIX}
+      machineNetwork:
+      - cidr: ${MNET_CIDR}
+      serviceNetwork:
+      - ${SVC_CIDR}
+    platform:
+      aws:
+        region: ${REGION}
+    pullSecret: "" # skip, hive will inject based on it's secrets
+    sshKey: |-
+      ${SSH_PUB_KEY}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${CLUSTER_NAME}-ssh-private-key
+  namespace: ${CLUSTER_NAME}
+  labels:
+    cluster.open-cluster-management.io/backup: cluster
+    cluster.open-cluster-management.io/copiedFromNamespace: open-cluster-management
+    cluster.open-cluster-management.io/copiedFromSecretName: aws
+type: Opaque
+stringData:
+  ssh-privatekey: |
+    ${SSH_PRIV_KEY}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${CLUSTER_NAME}-pull-secret
+  namespace: ${CLUSTER_NAME}
+  labels:
+    cluster.open-cluster-management.io/backup: cluster
+    cluster.open-cluster-management.io/copiedFromNamespace: open-cluster-management
+    cluster.open-cluster-management.io/copiedFromSecretName: aws
+type: kubernetes.io/dockerconfigjson
+stringData:
+  .dockerconfigjson: |
+${PULL_SECRET_CONTENT}
+---
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  annotations:
+    open-cluster-management/created-via: other
+  finalizers:
+    - open-cluster-management.io/managedclusterinfo.finalizers
+    - open-cluster-management.io/managedcluster-import-controller.cleanup
+    - open-cluster-management.io/managedclusterrole
+    - cluster.open-cluster-management.io/resource-cleanup
+    - cluster.open-cluster-management.io/api-resource-cleanup
+    - open-cluster-management.io/managedcluster-import-controller.manifestwork-cleanup
+  labels:
+    cloud: Amazon
+    cluster.open-cluster-management.io/clusterset: default
+    environment: prod
+    name: ${CLUSTER_NAME}
+    region: ${REGION}
+    vendor: OpenShift
+  name: ${CLUSTER_NAME}
+spec:
+  hubAcceptsClient: true
+---
+apiVersion: hive.openshift.io/v1
+kind: ClusterDeployment
+metadata:
+  annotations:
+    open-cluster-management.io/user-group: system:authenticated:oauth,system:authenticated
+    open-cluster-management.io/user-identity: admin
+  finalizers:
+    - hive.openshift.io/deprovision
+  labels:
+    cloud: AWS
+    cluster.open-cluster-management.io/clusterset: default
+    hive.openshift.io/cluster-platform: aws
+    hive.openshift.io/cluster-region: ${REGION}
+    region: ${REGION}
+    vendor: OpenShift
+  name: ${CLUSTER_NAME}
+  namespace: ${CLUSTER_NAME}
+spec:
+  baseDomain: ${BASE_DOMAIN}
+  clusterName: ${CLUSTER_NAME}
+  controlPlaneConfig:
+    servingCertificates: {}
+  installAttemptsLimit: 1
+  installed: false
+  platform:
+    aws:
+      credentialsSecretRef:
+        name: ${CLUSTER_NAME}-aws-creds
+      region: ${REGION}
+  provisioning:
+    imageSetRef:
+      name: img4.20.22-multi-appsub
+    installConfigSecretRef:
+      name: ${CLUSTER_NAME}-install-config
+    sshPrivateKeySecretRef:
+      name: ${CLUSTER_NAME}-ssh-private-key
+  pullSecretRef:
+    name: ${CLUSTER_NAME}-pull-secret
+---
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  generation: 1
+  name: ${CLUSTER_NAME}
+  namespace: ${CLUSTER_NAME}
+spec:
+  applicationManager:
+    enabled: true
+  certPolicyController:
+    enabled: true
+  clusterLabels:
+    cloud: Amazon
+    vendor: OpenShift
+  clusterName: ${CLUSTER_NAME}
+  clusterNamespace: ${CLUSTER_NAME}
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true
