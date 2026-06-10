@@ -8,8 +8,8 @@ Advanced Cluster Management for Kubernetes Demo
 
 The Red Hat Demo Platform will provide you:
 
-- URL link User and Password to openshift ACM
-- AWS ID,KEY and BASE_DOMAIN
+- RHACM/OpenShift Access Information: URL link, User and Password to openshift ACM
+- AWS Access Information: AWS ID,KEY and BASE_DOMAIN
 
 ## Table of Contents
 
